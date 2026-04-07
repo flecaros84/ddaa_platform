@@ -1,0 +1,50 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: auth-service-auth
+              uri: lb://auth-service
+              predicates:
+                - Path=/auth/**
+              filters:
+                - PreserveHostHeader
+
+            - id: auth-service-oauth2
+              uri: lb://auth-service
+              predicates:
+                - Path=/oauth2/**
+              filters:
+                - PreserveHostHeader
+
+            - id: auth-service-login
+              uri: lb://auth-service
+              predicates:
+                - Path=/login/**
+              filters:
+                - PreserveHostHeader
+
+            - id: auth-service-logout
+              uri: lb://auth-service
+              predicates:
+                - Path=/logout
+              filters:
+                - PreserveHostHeader
+
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
