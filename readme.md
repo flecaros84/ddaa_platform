@@ -1,441 +1,254 @@
 # DDAA Platform
 
-## 1. Descripción general del proyecto
+## 1. Descripcion general
 
-**DDAA Platform** es una solución basada en microservicios orientada a la gestión de derechos de aprovechamiento de aguas (DDAA). El objetivo del proyecto es construir una plataforma escalable, segura y mantenible que permita centralizar procesos relacionados con autenticación, acceso de usuarios corporativos y, posteriormente, la gestión del negocio específico asociado al dominio del cliente.
+**DDAA Platform** es una solucion basada en microservicios para la gestion de derechos de aprovechamiento de aguas (DDAA). El proyecto ya cuenta con una base de autenticacion corporativa, descubrimiento de servicios, gateway centralizado, frontend inicial y un microservicio MVP para consultar y administrar informacion del dominio DDAA.
 
-En esta primera etapa se ha implementado la base arquitectónica del sistema, compuesta por:
+El estado actual de la plataforma incluye:
 
 * **Eureka Server** para descubrimiento de servicios.
-* **API Gateway** como punto único de entrada.
-* **Auth Service** como microservicio de autenticación.
-* **Frontend React** como cliente web inicial.
-* **SQL Server** como base de datos local para persistencia de usuarios.
-* **Google Login corporativo** con restricción de dominio.
+* **API Gateway** como punto unico de entrada.
+* **Auth Service** para autenticacion con Google corporativo y persistencia de usuarios.
+* **DDAA Service** como microservicio de negocio para derechos de agua, expedientes, catalogos y operaciones CRUD basicas.
+* **Frontend React + Vite** como cliente web inicial.
+* **SQL Server** para usuarios del servicio de autenticacion y para la base local del dominio DDAA.
+* **H2 en memoria** solo para tests automatizados de `ddaa-service`.
+* **Swagger/OpenAPI** para documentar APIs REST de `ddaa-service` y `auth-service`.
 
-La arquitectura fue diseñada para crecer de manera incremental, permitiendo incorporar nuevos microservicios del dominio DDAA sin modificar la base estructural ya construida.
-
----
-
-## 2. Selección de patrones de arquitectura
-
-### 2.1 Patrón principal: Arquitectura de microservicios
-
-Se seleccionó una **arquitectura de microservicios** porque el caso requiere una solución modular, extensible y preparada para crecer a medida que el sistema incorpore nuevas capacidades de negocio. En un contexto como la gestión de derechos de agua, es esperable que a futuro existan procesos diferenciados tales como:
-
-* autenticación y gestión de usuarios,
-* gestión de expedientes,
-* gestión documental,
-* trazabilidad de solicitudes,
-* integración con servicios externos,
-* reportabilidad y analítica.
-
-Una arquitectura monolítica podría resolver una primera versión funcional, pero dificultaría la evolución del sistema, el aislamiento de responsabilidades y la escalabilidad selectiva. En cambio, los microservicios permiten separar el sistema en componentes especializados, con responsabilidades bien definidas y menor acoplamiento.
-
-### 2.2 Patrones seleccionados
-
-#### a) API Gateway Pattern
-
-Se incorporó un **API Gateway** como puerta única de entrada al sistema. Este patrón permite centralizar el acceso a los microservicios y aporta varias ventajas:
-
-* simplifica el consumo desde el frontend,
-* oculta la topología interna del sistema,
-* facilita la incorporación de reglas comunes de seguridad,
-* permite gestionar futuras políticas de routing, logging, control de tráfico y validación.
-
-En el caso del cliente, este patrón ayuda a construir una solución más ordenada y segura, ya que evita exponer directamente múltiples servicios internos.
-
-#### b) Service Discovery Pattern
-
-Se utilizó **Service Discovery** mediante Eureka Server para permitir que los microservicios se registren y descubran dinámicamente. Esto resulta especialmente útil en entornos distribuidos donde los servicios pueden crecer, moverse o replicarse.
-
-Este patrón aporta flexibilidad operativa y reduce la dependencia de configuraciones rígidas basadas en URLs fijas.
-
-#### c) Database per Service (aplicable como principio de evolución)
-
-En esta etapa solo se ha implementado la base de datos del servicio de autenticación, pero el diseño sigue el principio de **base de datos por servicio**, donde cada microservicio administra sus propios datos según su responsabilidad.
-
-Este enfoque favorece:
-
-* el aislamiento de datos,
-* la autonomía de los servicios,
-* una mejor evolución del modelo de datos,
-* menor acoplamiento entre módulos.
-
-#### d) Backend for Frontend simplificado mediante Gateway
-
-Aunque no se implementó un BFF dedicado, el uso del gateway como punto único de acceso cumple parcialmente un rol similar para el cliente web, al unificar el acceso a autenticación y a futuros microservicios.
+La arquitectura esta pensada para crecer por modulos, incorporando nuevas capacidades del dominio sin tener que reestructurar la base ya construida.
 
 ---
 
-## 3. Justificación de la selección de herramientas y estrategias
+## 2. Arquitectura seleccionada
 
-### 3.1 Spring Boot
+### 2.1 Microservicios
 
-Se eligió **Spring Boot** para el desarrollo de los microservicios por su madurez, ecosistema amplio y fuerte integración con componentes empresariales. Su uso permite acelerar el desarrollo, reducir configuración manual y estructurar servicios bajo principios sólidos de modularización y orientación a objetos.
+El proyecto usa una arquitectura de microservicios porque separa responsabilidades y permite evolucionar cada componente de forma independiente. Actualmente existen servicios separados para autenticacion, descubrimiento, gateway y dominio DDAA.
 
-Aporta eficiencia técnica porque:
+Esta decision facilita:
 
-* reduce código repetitivo,
-* simplifica la configuración de servicios REST,
-* facilita la integración con seguridad, base de datos y descubrimiento de servicios,
-* permite una evolución progresiva de la arquitectura.
+* aislar la autenticacion del negocio;
+* centralizar el acceso externo por medio del gateway;
+* registrar y descubrir servicios dinamicamente con Eureka;
+* agregar nuevos servicios de negocio sin acoplarlos al frontend ni al servicio de autenticacion;
+* escalar o reemplazar componentes de forma gradual.
 
-### 3.2 Spring Cloud
+### 2.2 Patrones aplicados
 
-Se utilizó **Spring Cloud** para resolver capacidades propias de sistemas distribuidos, en particular:
+#### API Gateway Pattern
 
-* **Eureka Server / Eureka Client** para descubrimiento de servicios,
-* **Spring Cloud Gateway** como gateway reactivo.
+El `api-gateway` expone una entrada unica al sistema en `http://localhost:8080`. Desde ahi enruta:
 
-Estas herramientas mejoran la eficiencia operativa porque permiten administrar la comunicación entre servicios de forma más flexible, escalable y centralizada.
+* `/auth/**`, `/oauth2/**`, `/login/**` y `/logout` hacia `auth-service`;
+* `/api/**` hacia `ddaa-service`.
 
-### 3.3 SQL Server
+Ademas, el gateway contiene un filtro global que protege las rutas `/api/**` consultando la sesion actual en `auth-service` mediante `/auth/me`.
 
-Se seleccionó **SQL Server** como motor de base de datos debido a su robustez, soporte empresarial y compatibilidad con entornos corporativos donde suele ser una tecnología ampliamente adoptada.
+#### Service Discovery Pattern
 
-En esta etapa se utiliza en entorno local para pruebas y desarrollo, permitiendo validar persistencia real del servicio de autenticación.
+`eureka-server` permite que `api-gateway`, `auth-service` y `ddaa-service` se registren y puedan ser resueltos por nombre logico (`lb://auth-service`, `lb://ddaa-service`).
 
-### 3.4 Spring Data JPA + Hibernate
+#### Database per Service
 
-Se optó por **Spring Data JPA** con **Hibernate** para simplificar la persistencia de datos y reducir la complejidad de acceso a base de datos.
+El proyecto sigue el principio de base de datos por servicio:
 
-Su aporte principal es:
+* `auth-service` usa SQL Server para usuarios internos y datos de autenticacion.
+* `ddaa-service` usa SQL Server local en ejecucion normal mediante variables `DDAA_DB_*`.
+* H2 queda reservado para pruebas automatizadas, donde permite ejecutar datos semilla sin depender de una base externa.
 
-* acelerar el desarrollo,
-* reducir código boilerplate,
-* facilitar la evolución del modelo de datos,
-* mantener una separación clara entre lógica de negocio y acceso a datos.
+#### Backend for Frontend parcial
 
-### 3.5 Google OAuth 2.0 / OpenID Connect
+El `api-gateway` ya contiene una primera capa BFF dentro del paquete `bff`. Actualmente esa capa esta enfocada en la sesion del usuario y expone:
 
-Se integró **Google Login corporativo** usando OAuth 2.0 / OpenID Connect para ofrecer autenticación segura y alineada con una organización que ya utiliza Google Workspace.
+* `GET /bff/session`, que consulta `auth-service` mediante `/auth/me`;
+* reenvio de headers de sesion (`Cookie` y `Authorization`) para conservar el contexto del navegador;
+* respuesta anonima controlada cuando no hay sesion valida.
 
-Esta decisión aporta eficiencia técnica y operativa porque:
+Esta implementacion usa `WebClient` con `@LoadBalanced`, por lo que el gateway puede llamar a `http://auth-service` usando Service Discovery/Eureka.
 
-* evita construir un sistema propio de credenciales,
-* aprovecha la infraestructura de identidad ya existente del cliente,
-* reduce riesgos asociados al manejo directo de contraseñas,
-* mejora la experiencia del usuario final.
-
-### 3.6 React + Vite
-
-Para el frontend se eligió **React** con **Vite** por su rapidez de desarrollo, simplicidad de configuración inicial y buena integración con APIs modernas.
-
-Su uso aporta:
-
-* rapidez para construir interfaces,
-* estructura modular basada en componentes,
-* facilidad para escalar a medida que crezca la aplicación,
-* una experiencia ágil de desarrollo local.
-
-### 3.7 Estrategia de implementación incremental
-
-Se definió una estrategia incremental, comenzando por la infraestructura base y la autenticación antes de construir la lógica de negocio del dominio DDAA.
-
-Esta estrategia fue elegida porque:
-
-* permite validar la arquitectura desde el inicio,
-* reduce retrabajo futuro,
-* asegura que los nuevos módulos se integren sobre una base estable,
-* facilita el aprendizaje y la comprensión del sistema.
+Importante: el CRUD DDAA aun no pasa por endpoints BFF propios. Por ahora el frontend o cualquier cliente consume `/api/**` y el gateway enruta esas llamadas directamente hacia `ddaa-service`, protegiendolas antes con el filtro de autenticacion. Para que el BFF quede completo, el siguiente paso arquitectonico es agregar endpoints BFF para las pantallas DDAA, por ejemplo `/bff/ddaa`, `/bff/ddaa/{id}`, catalogos agrupados y datos iniciales de formularios.
 
 ---
 
-## 4. Esquema de selección de patrones de arquitectura
-
-```mermaid
-flowchart TD
-    A[Requerimientos del cliente] --> B[Necesidad de escalabilidad y modularidad]
-    A --> C[Necesidad de seguridad y control de acceso]
-    A --> D[Necesidad de crecimiento futuro]
-
-    B --> E[Patrón de Microservicios]
-    C --> F[API Gateway Pattern]
-    D --> G[Service Discovery Pattern]
-    E --> H[Separación por responsabilidades]
-    F --> I[Punto único de entrada]
-    G --> J[Descubrimiento dinámico de servicios]
-
-    H --> K[Solución alineada al caso DDAA]
-    I --> K
-    J --> K
-```
-
-Este esquema resume la lógica de selección. Los patrones elegidos permiten responder a requerimientos de crecimiento, orden estructural, control centralizado de acceso y evolución progresiva del sistema.
-
----
-
-## 5. Diagrama de arquitectura de microservicios propuesta
+## 3. Diagrama actual
 
 ```mermaid
 flowchart LR
     U[Usuario] --> FE[Frontend React]
     FE --> GW[API Gateway]
+
     GW --> AUTH[Auth Service]
-    AUTH --> DB[(SQL Server)]
+    GW --> DDAA[DDAA Service]
+
+    AUTH --> AUTHDB[(SQL Server - auth)]
+    DDAA --> DDAADB[(SQL Server - DDAA)]
+
     GW --> EUREKA[Eureka Server]
     AUTH --> EUREKA
+    DDAA --> EUREKA
 ```
 
-### Descripción del diagrama
+### Flujo general
 
-* El **usuario** interactúa con el **frontend React**.
-* El frontend se comunica con el **API Gateway**, que actúa como único punto de entrada.
-* El gateway enruta las solicitudes al **Auth Service**.
-* El Auth Service consulta y persiste información en **SQL Server**.
-* Tanto el gateway como el servicio de autenticación se registran en **Eureka Server** para su descubrimiento.
-
----
-
-## 6. Consideraciones de seguridad, privacidad y sostenibilidad
-
-### 6.1 Seguridad
-
-La arquitectura considera la seguridad como un eje central desde la etapa inicial:
-
-* El acceso se canaliza mediante **API Gateway**, evitando exponer directamente los servicios internos.
-* La autenticación se delega a **Google Workspace**, reduciendo el riesgo de gestionar contraseñas manualmente.
-* Se restringe el acceso a usuarios del dominio corporativo autorizado (`camanchaca.cl`).
-* El sistema genera un usuario interno propio en base de datos, permitiendo futuras políticas de roles, auditoría y control fino de permisos.
-* La configuración sensible se externaliza usando variables de entorno y archivos locales excluidos de Git.
-
-### 6.2 Privacidad
-
-La solución evita almacenar credenciales del usuario final en la aplicación. En su lugar, utiliza identidad federada mediante Google. Esto disminuye la exposición de información sensible y facilita el cumplimiento de buenas prácticas de protección de datos.
-
-Adicionalmente, la separación por servicios permite que cada componente maneje únicamente los datos que necesita, favoreciendo el principio de mínimo conocimiento.
-
-### 6.3 Sostenibilidad
-
-La sostenibilidad del diseño se aborda desde varios frentes:
-
-* **Sostenibilidad técnica**: una arquitectura modular es más fácil de mantener, extender y corregir a largo plazo.
-* **Sostenibilidad operativa**: la separación de servicios facilita desplegar, monitorear y evolucionar componentes sin afectar todo el sistema.
-* **Sostenibilidad organizacional**: permite incorporar nuevas funcionalidades del dominio DDAA de forma ordenada, reduciendo deuda técnica futura.
-
-En términos prácticos, esta arquitectura favorece ciclos de mejora continua sin necesidad de rehacer la base del sistema.
+1. El usuario entra al frontend.
+2. El frontend consulta al gateway.
+3. El frontend puede consultar `/bff/session` para conocer la sesion actual.
+4. El gateway enruta autenticacion hacia `auth-service`.
+5. El gateway enruta `/api/**` hacia `ddaa-service`.
+6. Antes de permitir acceso a `/api/**`, el gateway valida la sesion consultando `/auth/me`.
+7. Los servicios se registran en Eureka para discovery.
 
 ---
 
-## 7. Evaluación general del diseño propuesto
-
-El diseño actual responde adecuadamente a los requerimientos iniciales del cliente y sienta una base consistente para continuar el desarrollo del sistema.
-
-### Fortalezas del diseño
-
-* Define una arquitectura moderna, modular y escalable.
-* Aísla la autenticación como una responsabilidad independiente.
-* Centraliza el acceso mediante gateway.
-* Usa descubrimiento de servicios, facilitando el crecimiento futuro.
-* Integra autenticación corporativa real con Google Workspace.
-* Persiste usuarios internos, permitiendo extender la solución hacia autorización basada en roles y auditoría.
-* Mantiene una estructura de proyecto ordenada, comprensible y preparada para crecer.
-
-### Limitaciones actuales
-
-* Solo se ha implementado el microservicio de autenticación.
-* El frontend es todavía una base inicial.
-* Aún no se han desarrollado los microservicios propios del negocio DDAA.
-* No se ha incorporado todavía observabilidad avanzada, trazabilidad distribuida ni despliegue productivo.
-
-### Evaluación final
-
-Aun cuando el proyecto se encuentra en una etapa temprana, el diseño propuesto es coherente con los requerimientos funcionales y técnicos del caso. La solución construida hasta ahora no solo permite autenticar usuarios corporativos de manera segura, sino que también establece una arquitectura sólida para incorporar progresivamente los servicios específicos del dominio de gestión de derechos de agua.
-
----
-
-## 8. Estado actual del proyecto
-
-### Implementado
-
-* Eureka Server
-* API Gateway
-* Auth Service
-* SQL Server local
-* Persistencia de usuarios
-* Login Google corporativo
-* Restricción por dominio `camanchaca.cl`
-* Frontend React básico
-
-### Pendiente
-
-* Integración completa frontend-backend en flujo final de navegación
-* Nuevos microservicios del dominio DDAA
-* Gestión de roles y permisos avanzados
-* Gestión documental y expedientes
-* Observabilidad y monitoreo
-* Despliegue en infraestructura cloud
-
----
-
-## 9. Sección técnica de implementación y testing
-
-### 9.1 Estructura actual de servicios
-
-La solución implementada hasta esta etapa se compone de los siguientes módulos:
+## 4. Estructura del proyecto
 
 ```text
 ddaa-platform/
-├── eureka-server/
 ├── api-gateway/
 ├── auth-service/
-└── frontend/
+├── data/
+│   └── scripts/
+│       └── model.sql
+├── ddaa-service/
+├── docs/
+├── eureka-server/
+├── frontend/
+└── readme.md
 ```
 
-### 9.2 Puertos utilizados en desarrollo local
+### Modulos principales
 
-| Componente            | Puerto | Descripción                            |
-| --------------------- | -----: | -------------------------------------- |
-| Eureka Server         |   8761 | Registro y descubrimiento de servicios |
-| API Gateway           |   8080 | Punto único de entrada al sistema      |
-| Auth Service          |   8081 | Microservicio de autenticación         |
-| Frontend React (Vite) |   5173 | Cliente web de desarrollo              |
-| SQL Server            |   1433 | Base de datos local                    |
+| Modulo | Estado | Responsabilidad |
+| --- | --- | --- |
+| `eureka-server` | Implementado | Registro y descubrimiento de servicios. |
+| `api-gateway` | Implementado con BFF parcial | Entrada unica, routing, proteccion de `/api/**` y BFF inicial de sesion. |
+| `auth-service` | Implementado | Login Google, restriccion de dominio, persistencia de usuarios y Swagger acotado. |
+| `ddaa-service` | MVP implementado | Entidades JPA del dominio, endpoints REST para derechos DDAA, expedientes, catalogos, CRUD basico y Swagger completo. |
+| `frontend` | Base inicial | Login, consulta de usuario autenticado y home simple. |
+| `data/scripts/model.sql` | Disponible | Modelo SQL de referencia usado como guia para las entidades JPA. |
 
-### 9.3 URLs principales para testing local
+---
 
-#### Eureka Server
+## 5. Estado actual
+
+### Implementado
+
+* Registro de servicios con Eureka.
+* Gateway con rutas a `auth-service` y `ddaa-service`.
+* BFF inicial en `api-gateway` para consultar la sesion del frontend mediante `GET /bff/session`.
+* Autenticacion con Google OAuth2/OpenID Connect.
+* Restriccion de dominio corporativo `camanchaca.cl`.
+* Persistencia de usuarios internos en SQL Server.
+* Frontend React con flujo basico de login y home.
+* Swagger/OpenAPI en `ddaa-service`.
+* Swagger/OpenAPI acotado en `auth-service`.
+* `ddaa-service` con:
+  * `GET /api/ddaa`
+  * `GET /api/ddaa/{id}`
+  * `GET /api/ddaa/{id}/expedientes`
+  * `GET /api/catalogos/cuencas`
+  * `GET /api/catalogos/subcuencas`
+  * `GET /api/catalogos/fuentes`
+  * `POST /api/ddaa`
+  * `PUT /api/ddaa/{id}`
+  * `DELETE /api/ddaa/{id}`
+* Modelo JPA completo para las tablas del dominio DDAA, incluyendo `COMUNA`, `RUTS` e `INSTALACION`.
+* Repositorios JPA para las entidades del dominio.
+* CRUD principal de `DDAA` implementado con JPA/Hibernate.
+* Consultas de lectura compleja apoyadas temporalmente en `JdbcTemplate` para joins de detalle, expedientes, pagos y ejercicios.
+* Creacion de tablas DDAA validada en SQL Server local mediante Hibernate/JPA.
+* `data.sql` para levantar datos de test en H2.
+* Test de integracion `DdaaCrudIntegrationTest`.
+
+### Parcial o pendiente
+
+* El frontend aun no tiene vistas ni formularios para el CRUD DDAA.
+* Falta extender el BFF para los flujos DDAA; hoy el CRUD se consume por `/api/**` como ruta protegida del gateway, no como endpoints BFF especificos.
+* `ddaa-service` aun no tiene wrapper Maven propio (`mvnw.cmd`/`.mvn`).
+* Falta consolidar datos semilla reales para la base DDAA en SQL Server.
+* Falta gestion avanzada de roles y permisos.
+* Falta gestion documental completa.
+* Falta observabilidad avanzada, trazabilidad distribuida y despliegue cloud formal.
+* Conviene revisar que archivos locales con secretos no queden versionados.
+
+---
+
+## 6. Puertos de desarrollo
+
+| Componente | Puerto | URL local |
+| --- | ---: | --- |
+| Eureka Server | 8761 | `http://localhost:8761` |
+| API Gateway | 8080 | `http://localhost:8080` |
+| Auth Service | 8081 | `http://localhost:8081` |
+| DDAA Service | 8082 | `http://localhost:8082` |
+| Frontend React | 5173 | `http://localhost:5173` |
+| SQL Server | 1433 | `localhost:1433` |
+
+---
+
+## 7. Swagger / OpenAPI
+
+### DDAA Service
+
+Documentacion completa del contrato de negocio:
 
 ```text
-http://localhost:8761
+http://localhost:8082/swagger-ui.html
+http://localhost:8082/v3/api-docs
 ```
 
-Permite verificar que los servicios se registren correctamente en Eureka.
+Incluye endpoints de:
 
-#### API Gateway
+* derechos DDAA;
+* detalle por identificador;
+* expedientes asociados;
+* catalogos de cuencas, subcuencas y fuentes;
+* creacion, actualizacion y eliminacion del MVP.
+
+La documentacion declara dos servidores:
+
+* `http://localhost:8080` para consumir via API Gateway;
+* `http://localhost:8082` para consumir directo contra el servicio.
+
+Las rutas `/api/**` estan protegidas cuando se consumen via gateway, usando la sesion creada por `auth-service`.
+
+### Auth Service
+
+Documentacion acotada de endpoints REST propios:
 
 ```text
-http://localhost:8080
+http://localhost:8081/swagger-ui.html
+http://localhost:8081/v3/api-docs
 ```
 
-Se utiliza como entrada principal para las pruebas del backend.
+Incluye:
 
-#### Frontend React
+* `/auth/test`;
+* `/auth/login`;
+* `/auth/error`;
+* `/auth/me`;
+* `/auth/users`;
+* `/auth/users/test`.
+
+El flujo OAuth con Google se sigue probando desde navegador mediante:
 
 ```text
-http://localhost:5173
+http://localhost:8080/oauth2/authorization/google
 ```
 
-Permite probar la experiencia de login desde la interfaz web.
+Swagger no intenta modelar el flujo completo de redirecciones OAuth, cookies y callback de Google.
 
-### 9.4 Endpoints relevantes implementados
+---
 
-#### Auth Service a través del API Gateway
+## 8. Configuracion local
 
-##### Verificación simple del servicio
+Los servicios importan configuracion local desde:
 
-```http
-GET http://localhost:8080/auth/test
+```text
+local.properties
 ```
 
-**Respuesta esperada:**
-
-```json
-{
-  "service": "auth-service",
-  "status": "ok"
-}
-```
-
-##### Inicio de sesión con Google
-
-```http
-GET http://localhost:8080/oauth2/authorization/google
-```
-
-Este endpoint inicia el flujo de autenticación corporativa mediante Google Workspace.
-
-##### Información del usuario autenticado
-
-```http
-GET http://localhost:8080/auth/me
-```
-
-**Ejemplo de respuesta esperada:**
-
-```json
-{
-  "authenticated": true,
-  "name": "Fabian Lecaros",
-  "email": "fabian.lecaros@camanchaca.cl",
-  "googleId": "107293895174367357436",
-  "domain": "camanchaca.cl"
-}
-```
-
-##### Logout
-
-```http
-GET http://localhost:8080/logout
-```
-
-Cierra la sesión de la aplicación.
-
-##### Endpoint de error de autenticación
-
-```http
-GET http://localhost:8080/auth/error
-```
-
-Se utiliza cuando falla la autenticación o el dominio del correo no está autorizado.
-
-##### Crear usuario manual de prueba
-
-```http
-POST http://localhost:8080/auth/users/test
-Content-Type: application/json
-```
-
-**Body de ejemplo:**
-
-```json
-{
-  "googleId": "google-test-001",
-  "name": "Usuario Prueba",
-  "email": "usuario.prueba@camanchaca.cl",
-  "role": "ADMIN",
-  "active": true
-}
-```
-
-##### Listar usuarios internos
-
-```http
-GET http://localhost:8080/auth/users
-```
-
-Este endpoint permite comprobar que los usuarios se almacenan correctamente en la base de datos interna.
-
-### 9.5 Flujo técnico de autenticación implementado
-
-El flujo actual opera de la siguiente manera:
-
-1. El usuario accede al frontend React.
-2. El frontend redirige al endpoint `/oauth2/authorization/google` del gateway.
-3. El gateway reenvía la solicitud al `auth-service`.
-4. Google autentica al usuario.
-5. Google redirige el callback al gateway.
-6. El gateway reenvía el callback al `auth-service`.
-7. El `auth-service` valida que el correo pertenezca al dominio autorizado.
-8. El `auth-service` crea o actualiza un usuario interno en SQL Server.
-9. El usuario autenticado puede consultar `/auth/me`.
-
-### 9.6 Validaciones de seguridad implementadas
-
-Actualmente se encuentran operativas las siguientes validaciones:
-
-* autenticación con Google Workspace,
-* restricción de acceso por dominio corporativo,
-* validación de correo verificado,
-* persistencia de usuario interno para trazabilidad futura,
-* acceso a servicios internos a través del gateway.
-
-### 9.7 Configuración local y buenas prácticas
-
-La configuración sensible se externaliza usando variables en `application.yml` y un archivo `local.properties` fuera de Git.
-
-Ejemplo de variables utilizadas:
+Variables usadas por `auth-service`:
 
 ```properties
 DB_URL=jdbc:sqlserver://localhost:1433;databaseName=ddaa_auth;encrypt=true;trustServerCertificate=true
@@ -447,43 +260,294 @@ ALLOWED_GOOGLE_DOMAIN=camanchaca.cl
 EUREKA_DEFAULT_ZONE=http://localhost:8761/eureka/
 ```
 
-### 9.8 Orden recomendado de ejecución en desarrollo
+Variables para `ddaa-service`:
 
-Para levantar correctamente la solución local, se recomienda iniciar los componentes en el siguiente orden:
+```properties
+DDAA_DB_URL=jdbc:sqlserver://localhost:1433;databaseName=ddaa;encrypt=true;trustServerCertificate=true
+DDAA_DB_USER=ddaa_user
+DDAA_DB_PASSWORD=tu_password
+DDAA_DB_DRIVER=com.microsoft.sqlserver.jdbc.SQLServerDriver
+DDAA_SQL_INIT_MODE=never
+DDAA_JPA_DDL_AUTO=update
+EUREKA_DEFAULT_ZONE=http://localhost:8761/eureka/
+```
+
+Con `DDAA_JPA_DDL_AUTO=update`, `ddaa-service` crea o actualiza las tablas a partir de las entidades del paquete `model`. `data/scripts/model.sql` se mantiene como referencia del diseno SQL original, pero la fuente activa del modelo en la aplicacion es JPA.
+
+Antes de levantar `ddaa-service`, la base `ddaa` debe existir y el login configurado en `DDAA_DB_USER` debe tener permisos sobre ella. Hay un script auxiliar para preparar eso desde una sesion SQL Server con permisos de administrador:
+
+```text
+data/scripts/setup-ddaa-database.sql
+```
+
+Este script crea la base `ddaa` si no existe, crea o repara el login/usuario `ddaa_user`, asigna `ddaa` como base por defecto y entrega permisos locales de desarrollo para que Hibernate pueda crear y actualizar tablas. Incluye `db_owner` y permisos de lectura de metadata porque Hibernate/JDBC consulta informacion de indices al arrancar con `ddl-auto=update`.
+
+Una vez iniciado `ddaa-service`, puedes verificar que las tablas fueron creadas ejecutando:
+
+```sql
+USE ddaa;
+
+SELECT TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_TYPE = 'BASE TABLE'
+ORDER BY TABLE_NAME;
+```
+
+Nota de seguridad: `local.properties`, `.env` y cualquier archivo con credenciales reales deben mantenerse fuera de Git. El archivo `local_cloud.properties` tambien contiene configuracion sensible si se usa para entornos cloud.
+
+---
+
+## 9. Ejecucion local
+
+Requisitos:
+
+* Java 17.
+* Node.js y npm para el frontend.
+* Maven instalado globalmente o wrappers Maven funcionales por modulo.
+* SQL Server local para ejecutar `auth-service` y `ddaa-service`.
+* Credenciales Google OAuth configuradas para probar login real.
+
+Orden recomendado:
 
 1. `eureka-server`
-2. `api-gateway`
-3. `auth-service`
-4. `frontend`
+2. `auth-service`
+3. `ddaa-service`
+4. `api-gateway`
+5. `frontend`
 
-### 9.9 Pruebas técnicas mínimas recomendadas
+### Eureka Server
 
-Para comprobar que la solución se encuentra operativa, se recomienda verificar:
+```powershell
+cd eureka-server
+.\mvnw.cmd spring-boot:run
+```
 
-1. que `API-GATEWAY` y `AUTH-SERVICE` aparezcan registrados en Eureka,
-2. que `GET /auth/test` responda correctamente desde el gateway,
-3. que el login Google funcione solo con cuentas `@camanchaca.cl`,
-4. que un usuario autenticado quede registrado en la tabla `users`,
-5. que el frontend React pueda consultar `/auth/me`.
+### Auth Service
 
-## 10. Tecnologías utilizadas
+```powershell
+cd auth-service
+.\mvnw.cmd spring-boot:run
+```
 
-* Java 17+
+### DDAA Service
+
+Actualmente `ddaa-service` no trae wrapper Maven propio. Si tienes Maven instalado globalmente:
+
+```powershell
+mvn -f ddaa-service\pom.xml spring-boot:run
+```
+
+Si se agrega wrapper al modulo, el comando esperado seria:
+
+```powershell
+cd ddaa-service
+.\mvnw.cmd spring-boot:run
+```
+
+### API Gateway
+
+```powershell
+cd api-gateway
+.\mvnw.cmd spring-boot:run
+```
+
+### Frontend
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+---
+
+## 10. Endpoints relevantes
+
+### Auth Service via gateway
+
+#### Test simple
+
+```http
+GET http://localhost:8080/auth/test
+```
+
+Respuesta esperada:
+
+```json
+{
+  "service": "auth-service",
+  "status": "ok"
+}
+```
+
+#### Login Google
+
+```http
+GET http://localhost:8080/oauth2/authorization/google
+```
+
+#### Usuario autenticado
+
+```http
+GET http://localhost:8080/auth/me
+```
+
+Ejemplo:
+
+```json
+{
+  "authenticated": true,
+  "name": "Nombre Usuario",
+  "email": "usuario@camanchaca.cl",
+  "googleId": "google-id",
+  "domain": "camanchaca.cl"
+}
+```
+
+#### Logout
+
+```http
+GET http://localhost:8080/logout
+```
+
+#### Listar usuarios internos
+
+```http
+GET http://localhost:8080/auth/users
+```
+
+### BFF via gateway
+
+El BFF vive dentro de `api-gateway`. En esta etapa expone el estado de sesion para que el frontend no tenga que conocer directamente el contrato interno de `auth-service`.
+
+```http
+GET http://localhost:8080/bff/session
+```
+
+Respuesta con sesion valida:
+
+```json
+{
+  "authenticated": true,
+  "email": "usuario@camanchaca.cl"
+}
+```
+
+Respuesta sin sesion valida:
+
+```json
+{
+  "authenticated": false
+}
+```
+
+### DDAA Service via gateway
+
+Las rutas DDAA se exponen por el gateway bajo `/api/**` y requieren sesion autenticada.
+
+```http
+GET http://localhost:8080/api/ddaa
+GET http://localhost:8080/api/ddaa/{id}
+GET http://localhost:8080/api/ddaa/{id}/expedientes
+GET http://localhost:8080/api/catalogos/cuencas
+GET http://localhost:8080/api/catalogos/subcuencas
+GET http://localhost:8080/api/catalogos/fuentes
+POST http://localhost:8080/api/ddaa
+PUT http://localhost:8080/api/ddaa/{id}
+DELETE http://localhost:8080/api/ddaa/{id}
+```
+
+Ejemplo de creacion:
+
+```http
+POST http://localhost:8080/api/ddaa
+Content-Type: application/json
+
+{
+  "comunaId": "001",
+  "rutTitular": 11111111,
+  "instalacionId": null,
+  "fuenteId": 1,
+  "nombreFuenteDerecho": "Fuente X",
+  "naturalezaDerecho": "Privado",
+  "tipoDerecho": "Titulo",
+  "estadoDerecho": "Activo"
+}
+```
+
+Respuesta esperada:
+
+```json
+{
+  "id": 1
+}
+```
+
+---
+
+## 11. Testing
+
+### DDAA Service
+
+El proyecto incluye una prueba de integracion:
+
+```text
+ddaa-service/src/test/java/com/ddaa/ddaaservice/DdaaCrudIntegrationTest.java
+```
+
+La prueba valida un ciclo basico:
+
+1. crea datos referenciales minimos;
+2. crea un DDAA;
+3. consulta el DDAA creado;
+4. actualiza el registro;
+5. elimina el registro.
+
+Si tienes Maven instalado globalmente:
+
+```powershell
+mvn -f ddaa-service\pom.xml test
+```
+
+Los reportes Maven se generan en `ddaa-service/target/`, pero esa carpeta no se versiona.
+
+### Frontend
+
+Comandos disponibles:
+
+```powershell
+cd frontend
+npm run dev
+npm run build
+npm run lint
+```
+
+---
+
+## 12. Tecnologias utilizadas
+
+* Java 17
 * Spring Boot
 * Spring Cloud Gateway
+* Spring WebFlux / WebClient en `api-gateway`
 * Eureka Server / Eureka Client
 * Spring Security
 * OAuth2 / OpenID Connect
 * SQL Server
-* Spring Data JPA / Hibernate
+* H2 Database solo para tests
+* Spring Data JPA / Hibernate en `auth-service` y `ddaa-service`
+* Spring JDBC / JdbcTemplate para consultas complejas de lectura en `ddaa-service`
+* springdoc-openapi / Swagger UI
 * React
 * Vite
 * Maven
 
 ---
 
-## 11. Conclusión
+## 13. Evaluacion del estado actual
 
-La solución propuesta para DDAA Platform adopta una arquitectura moderna basada en microservicios, alineada con las necesidades de escalabilidad, seguridad y mantenibilidad del caso. La incorporación temprana de patrones como API Gateway y Service Discovery permite construir una base robusta para la evolución futura del sistema.
+El proyecto ya no esta solamente en una etapa de autenticacion. La base de microservicios esta operativa y se incorporo un primer servicio de negocio (`ddaa-service`) con endpoints reales, modelo de datos local, pruebas de integracion y documentacion Swagger/OpenAPI.
 
-La implementación realizada hasta ahora demuestra que la arquitectura es técnicamente viable, funcional y coherente con los requerimientos del cliente, constituyendo un punto de partida sólido para el desarrollo posterior de los servicios de negocio propios de la gestión de derechos de agua.
+La principal brecha funcional esta en la interfaz: el frontend aun no consume el CRUD DDAA ni presenta pantallas de gestion. Como el BFF es una pieza central del proyecto, la integracion del frontend deberia avanzar extendiendo primero el BFF del gateway para los flujos DDAA y luego consumiendo esos endpoints desde React. La segunda brecha tecnica es la falta de wrapper Maven propio para `ddaa-service`, lo que hace menos uniforme la ejecucion respecto de los otros modulos.
+
+En terminos de arquitectura, el proyecto esta bien encaminado: gateway, discovery, autenticacion, BFF inicial y servicio de dominio ya conviven bajo el mismo esquema. Los siguientes pasos naturales son ampliar el BFF para DDAA, integrar las vistas DDAA en el frontend, consolidar la base de datos del dominio y formalizar seguridad/autorizacion por roles.

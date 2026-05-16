@@ -1,0 +1,43 @@
+server:
+  port: 8082
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: ddaa-service
+
+  config:
+    import: optional:file:./local.properties
+
+  datasource:
+    url: ${DDAA_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=ddaa;encrypt=true;trustServerCertificate=true}
+    username: ${DDAA_DB_USER:ddaa_user}
+    password: ${DDAA_DB_PASSWORD:}
+    driver-class-name: ${DDAA_DB_DRIVER:com.microsoft.sqlserver.jdbc.SQLServerDriver}
+
+  sql:
+    init:
+      mode: ${DDAA_SQL_INIT_MODE:never}
+
+  jpa:
+    hibernate:
+      ddl-auto: ${DDAA_JPA_DDL_AUTO:update}
+    show-sql: ${DDAA_JPA_SHOW_SQL:false}
+    properties:
+      hibernate:
+        format_sql: true
+
+eureka:
+  client:
+    service-url:
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

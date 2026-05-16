@@ -38,6 +38,13 @@ spring:
               filters:
                 - PreserveHostHeader
 
+            - id: ddaa-service-api
+              uri: lb://ddaa-service
+              predicates:
+                - Path=/api/**
+              filters:
+                - PreserveHostHeader
+
 eureka:
   client:
     service-url:
