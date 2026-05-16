@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { fetchCurrentUser } from './services/authService';
 import LoginPage from './pages/LoginPage';
 import HomePage from './pages/HomePage';
-import './app.css';
+import './App.css';
 
 function App() {
   const [user, setUser] = useState(null);
@@ -18,7 +18,7 @@ function App() {
         } else {
           setUser(null);
         }
-      } catch (error) {
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);

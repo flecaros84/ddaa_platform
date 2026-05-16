@@ -37,6 +37,8 @@ spring:
             redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
 app:
+  frontend:
+    success-url: ${FRONTEND_SUCCESS_URL:http://localhost:5173/}
   security:
     allowed-google-domain: ${ALLOWED_GOOGLE_DOMAIN:camanchaca.cl}
 

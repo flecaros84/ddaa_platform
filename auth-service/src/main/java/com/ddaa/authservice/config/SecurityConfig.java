@@ -1,9 +1,9 @@
 package com.ddaa.authservice.config;
 
 import com.ddaa.authservice.service.CustomOidcUserService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -11,9 +11,12 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private final CustomOidcUserService customOidcUserService;
+    private final String frontendSuccessUrl;
 
-    public SecurityConfig(CustomOidcUserService customOidcUserService) {
+    public SecurityConfig(CustomOidcUserService customOidcUserService,
+                          @Value("${app.frontend.success-url:http://localhost:5173/}") String frontendSuccessUrl) {
         this.customOidcUserService = customOidcUserService;
+        this.frontendSuccessUrl = frontendSuccessUrl;
     }
 
     @Bean
@@ -35,10 +38,13 @@ public class SecurityConfig {
                         .userInfoEndpoint(userInfo -> userInfo
                                 .oidcUserService(customOidcUserService)
                         )
-                        .defaultSuccessUrl("/auth/me", true)
+                        .defaultSuccessUrl(frontendSuccessUrl, true)
                         .failureUrl("/auth/error")
                 )
-                .logout(Customizer.withDefaults());
+                .logout(logout -> logout
+                        .logoutSuccessUrl(frontendSuccessUrl)
+                        .permitAll()
+                );
 
         return http.build();
     }

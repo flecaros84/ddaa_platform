@@ -18,4 +18,13 @@ public final class CatalogDtos {
 
     public record FuenteDto(Long id, Long subcuencaId, String subcuencaNombre, String nombre, String tipo) {
     }
+
+    public record ComunaDto(String id, String nombre) {
+    }
+
+    public record RutDto(Long rut, String nombre) {
+    }
+
+    public record InstalacionDto(Long id, String nombre) {
+    }
 }

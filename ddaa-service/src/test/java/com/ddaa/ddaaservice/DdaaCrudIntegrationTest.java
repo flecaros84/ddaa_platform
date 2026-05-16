@@ -1,4 +1,4 @@
-package com.ddaa.ddaaservice;
+package test.java.com.ddaa.ddaaservice;
 
 import com.ddaa.ddaaservice.dto.DdaaDtos.DdaaCreateDto;
 import com.ddaa.ddaaservice.dto.DdaaDtos.DdaaUpdateDto;

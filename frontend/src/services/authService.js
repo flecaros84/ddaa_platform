@@ -1,5 +1,5 @@
 export async function fetchCurrentUser() {
-    const response = await fetch('/auth/me', {
+    const response = await fetch('/bff/session', {
         credentials: 'include'
     });
 

@@ -36,7 +36,13 @@ public class DdaaQueryRepository {
 
     public Optional<DdaaSummaryDto> findDdaaById(long id) {
         try {
-            return Optional.ofNullable(jdbcTemplate.queryForObject(DDAA_SUMMARY_SQL + " WHERE d.ID_ddaa = ?", this::mapSummary, id));
+            return Optional.ofNullable(
+                    jdbcTemplate.queryForObject(
+                            DDAA_SUMMARY_SQL + " WHERE d.id_ddaa = ?",
+                            this::mapSummary,
+                            id
+                    )
+            );
         } catch (EmptyResultDataAccessException ex) {
             return Optional.empty();
         }
@@ -101,7 +107,7 @@ public class DdaaQueryRepository {
                 rs.getString("comunaNombre"),
                 rs.getLong("rutTitular"),
                 rs.getString("titularNombre"),
-                rs.getObject("instalacionId", Long.class),
+                nullableLong(rs, "instalacionId"),
                 rs.getString("instalacionNombre"),
                 rs.getLong("fuenteId"),
                 rs.getString("fuenteNombre"),
@@ -110,9 +116,9 @@ public class DdaaQueryRepository {
                 rs.getString("naturalezaDerecho"),
                 rs.getString("tipoDerecho"),
                 rs.getString("estadoDerecho"),
-                rs.getObject("cuencaId", Long.class),
+                nullableLong(rs, "cuencaId"),
                 rs.getString("cuencaNombre"),
-                rs.getObject("subcuencaId", Long.class),
+                nullableLong(rs, "subcuencaId"),
                 rs.getString("subcuencaNombre")
         );
     }
@@ -126,7 +132,7 @@ public class DdaaQueryRepository {
                 rs.getString("resolucionDgaNumero"),
                 rs.getDate("resolucionDgaFecha") != null ? rs.getDate("resolucionDgaFecha").toLocalDate() : null,
                 rs.getString("resolucionDgaLink"),
-                rs.getObject("catastroNumero", Integer.class),
+                nullableInteger(rs, "catastroNumero"),
                 rs.getDate("catastroFecha") != null ? rs.getDate("catastroFecha").toLocalDate() : null,
                 rs.getString("catastroLink")
         );
@@ -138,7 +144,7 @@ public class DdaaQueryRepository {
                 rs.getLong("ddaaId"),
                 rs.getDate("fechaCobro") != null ? rs.getDate("fechaCobro").toLocalDate() : null,
                 rs.getBigDecimal("caudalAplicadoLs"),
-                rs.getObject("factorAplicado", Integer.class),
+                nullableInteger(rs, "factorAplicado"),
                 rs.getBigDecimal("patenteUtm"),
                 rs.getBigDecimal("patenteClp")
         );
@@ -163,7 +169,7 @@ public class DdaaQueryRepository {
     }
 
     private ObraDto mapObra(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-        Long plazoId = rs.getObject("plazoId", Long.class);
+        Long plazoId = nullableLong(rs, "plazoId");
         PlazoDto plazo = null;
         if (plazoId != null) {
             plazo = new PlazoDto(
@@ -183,19 +189,19 @@ public class DdaaQueryRepository {
 
         return new ObraDto(
                 rs.getLong("id"),
-                rs.getObject("rutProveedor", Long.class),
+                nullableLong(rs, "rutProveedor"),
                 plazoId,
                 rs.getString("tipoObra"),
-                rs.getObject("estadoObra", Boolean.class),
+                nullableBoolean(rs, "estadoObra"),
                 rs.getDate("fechaSolicitudObra") != null ? rs.getDate("fechaSolicitudObra").toLocalDate() : null,
                 rs.getString("carpetaSolicitud"),
                 rs.getString("coordenadaObra"),
                 rs.getString("resolucionObra"),
                 rs.getString("linkResolucionObra"),
-                rs.getObject("conInstrumento", Boolean.class),
+                nullableBoolean(rs, "conInstrumento"),
                 rs.getString("codigoObraDga"),
                 rs.getString("linkQr"),
-                rs.getObject("reportaDga", Boolean.class),
+                nullableBoolean(rs, "reportaDga"),
                 plazo
         );
     }
@@ -208,22 +214,37 @@ public class DdaaQueryRepository {
                 rs.getString("nombre"),
                 rs.getString("shac"),
                 rs.getString("reserva"),
-                rs.getObject("declaracionAgotamiento", Boolean.class),
-                rs.getObject("zonaRestriccionSuperficial", Boolean.class),
-                rs.getObject("zonaRestriccionSubterranea", Boolean.class),
+                nullableBoolean(rs, "declaracionAgotamiento"),
+                nullableBoolean(rs, "zonaRestriccionSuperficial"),
+                nullableBoolean(rs, "zonaRestriccionSubterranea"),
                 rs.getString("estadoShac"),
-                rs.getObject("planGestionHidrica", Boolean.class)
+                nullableBoolean(rs, "planGestionHidrica")
         );
     }
 
     private FuenteDto mapFuente(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
         return new FuenteDto(
                 rs.getLong("id"),
-                rs.getObject("subcuencaId", Long.class),
+                nullableLong(rs, "subcuencaId"),
                 rs.getString("subcuencaNombre"),
                 rs.getString("nombre"),
                 rs.getString("tipo")
         );
+    }
+
+    private Long nullableLong(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        Number value = (Number) rs.getObject(column);
+        return value != null ? value.longValue() : null;
+    }
+
+    private Integer nullableInteger(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        Number value = (Number) rs.getObject(column);
+        return value != null ? value.intValue() : null;
+    }
+
+    private Boolean nullableBoolean(java.sql.ResultSet rs, String column) throws java.sql.SQLException {
+        boolean value = rs.getBoolean(column);
+        return rs.wasNull() ? null : value;
     }
 
     private record EjercicioRow(Long id, Long ddaaId, String ejercicioDerecho, String continuidadDerecho) {
@@ -233,32 +254,32 @@ public class DdaaQueryRepository {
     }
 
     private static final String DDAA_SUMMARY_SQL = """
-            SELECT d.ID_ddaa AS id,
-                   d.FK_ID_COMUNA AS comunaId,
-                   c.Nombre AS comunaNombre,
-                   d.FK_ID_RUT_TITULAR AS rutTitular,
-                   r.Nombre AS titularNombre,
-                   d.FK_ID_INSTALACION AS instalacionId,
-                   i.Nombre AS instalacionNombre,
-                   d.FK_ID_FUENTE AS fuenteId,
-                   f.Nombre AS fuenteNombre,
-                   f.Tipo AS fuenteTipo,
-                   d.NombreFuenteDerecho AS nombreFuenteDerecho,
-                   d.Naturaleza_derecho AS naturalezaDerecho,
-                   d.Tipo_Derecho AS tipoDerecho,
-                   d.EstadoDerecho AS estadoDerecho,
-                   cu.ID_Cuenca AS cuencaId,
-                   cu.Nombre AS cuencaNombre,
-                   s.ID_Subcuenca AS subcuencaId,
-                   s.NombreSubcuenca AS subcuencaNombre
-            FROM DDAA d
-            INNER JOIN COMUNA c ON c.ID_Comuna = d.FK_ID_COMUNA
-            INNER JOIN RUTS r ON r.Rut = d.FK_ID_RUT_TITULAR
-            LEFT JOIN INSTALACION i ON i.ID_Instalacion = d.FK_ID_INSTALACION
-            INNER JOIN FUENTE f ON f.ID_Fuente = d.FK_ID_FUENTE
-            LEFT JOIN SUBCUENCA s ON s.ID_Subcuenca = f.FK_ID_SUBCUENCA
-            LEFT JOIN CUENCA cu ON cu.ID_Cuenca = s.FK_ID_CUENCA
-            """;
+        SELECT d.id_ddaa AS id,
+               d.fk_id_comuna AS comunaId,
+               c.nombre AS comunaNombre,
+               d.fk_id_rut_titular AS rutTitular,
+               r.nombre AS titularNombre,
+               d.fk_id_instalacion AS instalacionId,
+               i.nombre AS instalacionNombre,
+               d.fk_id_fuente AS fuenteId,
+               f.nombre AS fuenteNombre,
+               f.tipo AS fuenteTipo,
+               d.nombre_fuente_derecho AS nombreFuenteDerecho,
+               d.naturaleza_derecho AS naturalezaDerecho,
+               d.tipo_derecho AS tipoDerecho,
+               d.estado_derecho AS estadoDerecho,
+               cu.id_cuenca AS cuencaId,
+               cu.nombre AS cuencaNombre,
+               s.id_subcuenca AS subcuencaId,
+               s.nombre_subcuenca AS subcuencaNombre
+        FROM ddaa d
+        INNER JOIN comuna c ON c.id_comuna = d.fk_id_comuna
+        INNER JOIN ruts r ON r.rut = d.fk_id_rut_titular
+        LEFT JOIN instalacion i ON i.id_instalacion = d.fk_id_instalacion
+        INNER JOIN fuente f ON f.id_fuente = d.fk_id_fuente
+        LEFT JOIN subcuenca s ON s.id_subcuenca = f.fk_id_subcuenca
+        LEFT JOIN cuenca cu ON cu.id_cuenca = s.fk_id_cuenca
+        """;
 
     private static final String EXPEDIENTES_BY_DDAA_SQL = """
             SELECT e.id AS id,
@@ -353,36 +374,36 @@ public class DdaaQueryRepository {
             """;
 
     private static final String CUENCAS_SQL = """
-            SELECT ID_Cuenca AS id, Nombre AS nombre
-            FROM CUENCA
-            ORDER BY Nombre
-            """;
+        SELECT id_cuenca AS id, nombre AS nombre
+        FROM cuenca
+        ORDER BY nombre
+        """;
 
     private static final String SUBCUENCAS_SQL = """
-            SELECT s.ID_Subcuenca AS id,
-                   s.FK_ID_CUENCA AS cuencaId,
-                   c.Nombre AS cuencaNombre,
-                   s.NombreSubcuenca AS nombre,
-                   s.SHAC AS shac,
-                   s.Reserva AS reserva,
-                   s.DeclaracionAgotamiento AS declaracionAgotamiento,
-                   s.ZonaRestriccionSuperficial AS zonaRestriccionSuperficial,
-                   s.ZonaRestriccionSubterranea AS zonaRestriccionSubterranea,
-                   s.EstadoSHAC AS estadoShac,
-                   s.PlanGestionHidrica AS planGestionHidrica
-            FROM SUBCUENCA s
-            INNER JOIN CUENCA c ON c.ID_Cuenca = s.FK_ID_CUENCA
-            ORDER BY c.Nombre, s.NombreSubcuenca
-            """;
+        SELECT s.id_subcuenca AS id,
+               s.fk_id_cuenca AS cuencaId,
+               c.nombre AS cuencaNombre,
+               s.nombre_subcuenca AS nombre,
+               s.shac AS shac,
+               s.reserva AS reserva,
+               s.declaracion_agotamiento AS declaracionAgotamiento,
+               s.zona_restriccion_superficial AS zonaRestriccionSuperficial,
+               s.zona_restriccion_subterranea AS zonaRestriccionSubterranea,
+               s.estadoshac AS estadoShac,
+               s.plan_gestion_hidrica AS planGestionHidrica
+        FROM subcuenca s
+        INNER JOIN cuenca c ON c.id_cuenca = s.fk_id_cuenca
+        ORDER BY c.nombre, s.nombre_subcuenca
+        """;
 
     private static final String FUENTES_SQL = """
-            SELECT f.ID_Fuente AS id,
-                   f.FK_ID_SUBCUENCA AS subcuencaId,
-                   s.NombreSubcuenca AS subcuencaNombre,
-                   f.Nombre AS nombre,
-                   f.Tipo AS tipo
-            FROM FUENTE f
-            LEFT JOIN SUBCUENCA s ON s.ID_Subcuenca = f.FK_ID_SUBCUENCA
-            ORDER BY f.Nombre
-            """;
+        SELECT f.id_fuente AS id,
+               f.fk_id_subcuenca AS subcuencaId,
+               s.nombre_subcuenca AS subcuencaNombre,
+               f.nombre AS nombre,
+               f.tipo AS tipo
+        FROM fuente f
+        LEFT JOIN subcuenca s ON s.id_subcuenca = f.fk_id_subcuenca
+        ORDER BY f.nombre
+        """;
 }

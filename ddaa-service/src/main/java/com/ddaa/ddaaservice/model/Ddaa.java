@@ -31,32 +31,33 @@ public class Ddaa {
     private Integer id;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "FK_ID_COMUNA", nullable = false)
+    @JoinColumn(name = "fk_id_comuna")
     private Comuna comuna;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "FK_ID_RUT_TITULAR", nullable = false)
+    @JoinColumn(name = "fk_id_rut_titular")
     private Rut titular;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "FK_ID_INSTALACION")
+    @JoinColumn(name = "fk_id_instalacion")
     private Instalacion instalacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "FK_ID_FUENTE", nullable = false)
+    @JoinColumn(name = "fk_id_fuente")
     private Fuente fuente;
 
-    @Column(name = "NombreFuenteDerecho")
+    @Column(name = "nombre_fuente_derecho")
     private String nombreFuenteDerecho;
 
-    @Column(name = "Naturaleza_derecho")
+    @Column(name = "naturaleza_derecho")
     private String naturalezaDerecho;
+
+
+    @Column(name = "estado_derecho")
+    private String estadoDerecho;
 
     @Column(name = "Tipo_Derecho")
     private String tipoDerecho;
-
-    @Column(name = "EstadoDerecho")
-    private String estadoDerecho;
 
     @ManyToMany
     @JoinTable(name = "DDAA_DDAA_EXPEDIENTE",

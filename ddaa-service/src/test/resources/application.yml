@@ -30,3 +30,7 @@ spring:
     init:
       mode: always
       data-locations: classpath:data.sql
+
+app:
+  sample-data:
+    enabled: false

@@ -2,6 +2,9 @@ package com.ddaa.ddaaservice.controller;
 
 import com.ddaa.ddaaservice.dto.CatalogDtos.CuencaDto;
 import com.ddaa.ddaaservice.dto.CatalogDtos.FuenteDto;
+import com.ddaa.ddaaservice.dto.CatalogDtos.ComunaDto;
+import com.ddaa.ddaaservice.dto.CatalogDtos.InstalacionDto;
+import com.ddaa.ddaaservice.dto.CatalogDtos.RutDto;
 import com.ddaa.ddaaservice.dto.CatalogDtos.SubcuencaDto;
 import com.ddaa.ddaaservice.dto.DdaaDtos.DdaaCreateDto;
 import com.ddaa.ddaaservice.dto.DdaaDtos.DdaaDetailDto;
@@ -80,6 +83,27 @@ public class DdaaController {
     @ApiResponse(responseCode = "200", description = "Listado de fuentes")
     public List<FuenteDto> listFuentes() {
         return queryService.findFuentes();
+    }
+
+    @GetMapping("/catalogos/comunas")
+    @Operation(summary = "Listar comunas", description = "Entrega comunas disponibles para formularios.")
+    @ApiResponse(responseCode = "200", description = "Listado de comunas")
+    public List<ComunaDto> listComunas() {
+        return queryService.findComunas();
+    }
+
+    @GetMapping("/catalogos/ruts")
+    @Operation(summary = "Listar titulares", description = "Entrega RUTs y nombres disponibles para formularios.")
+    @ApiResponse(responseCode = "200", description = "Listado de titulares")
+    public List<RutDto> listRuts() {
+        return queryService.findRuts();
+    }
+
+    @GetMapping("/catalogos/instalaciones")
+    @Operation(summary = "Listar instalaciones", description = "Entrega instalaciones disponibles para formularios.")
+    @ApiResponse(responseCode = "200", description = "Listado de instalaciones")
+    public List<InstalacionDto> listInstalaciones() {
+        return queryService.findInstalaciones();
     }
 
     @PostMapping("/ddaa")

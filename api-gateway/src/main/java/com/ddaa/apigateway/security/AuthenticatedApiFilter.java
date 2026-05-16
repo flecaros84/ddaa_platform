@@ -48,7 +48,8 @@ public class AuthenticatedApiFilter implements GlobalFilter, Ordered {
     }
 
     private boolean requiresAuthentication(ServerWebExchange exchange) {
-        return exchange.getRequest().getPath().value().startsWith("/api/");
+        String path = exchange.getRequest().getPath().value();
+        return path.startsWith("/api/") || path.startsWith("/bff/ddaa");
     }
 
     private void forwardSessionHeaders(ServerWebExchange exchange, HttpHeaders headers) {

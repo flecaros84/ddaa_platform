@@ -41,3 +41,7 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+
+app:
+  sample-data:
+    enabled: ${DDAA_SAMPLE_DATA_ENABLED:true}
