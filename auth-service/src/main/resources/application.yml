@@ -45,6 +45,12 @@ app:
     jwt-expiration-minutes: ${JWT_EXPIRATION_MINUTES:60}
 
 eureka:
+  instance:
+    # Fuerza a Eureka a registrar auth-service usando IP en vez de hostname.
+    # Esto evita que api-gateway intente resolver LAPTOP-...mshome.net.
+    prefer-ip-address: true
+    ip-address: ${AUTH_SERVICE_EUREKA_IP:127.0.0.1}
+    hostname: ${AUTH_SERVICE_EUREKA_HOSTNAME:localhost}
   client:
     service-url:
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}

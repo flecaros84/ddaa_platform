@@ -1,0 +1,19 @@
+services:
+  redis:
+    image: redis:7.4-alpine
+    container_name: ddaa-redis
+    restart: unless-stopped
+
+    # Puerto local para que ddaa-service pueda conectarse a Redis.
+    ports:
+      - "6379:6379"
+
+    # Persistencia simple para desarrollo local.
+    volumes:
+      - redis-data:/data
+
+    # Redis en modo desarrollo, con appendonly activado para persistencia básica.
+    command: redis-server --appendonly yes
+
+volumes:
+  redis-data:
