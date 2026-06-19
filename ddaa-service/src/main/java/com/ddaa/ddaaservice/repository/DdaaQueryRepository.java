@@ -311,67 +311,74 @@ public class DdaaQueryRepository {
             ORDER BY p.fecha_cobro DESC, p.folio_tgr DESC
             """;
 
+    // Consulta los ejercicios asociados a un derecho de agua.
+// Se usan los nombres reales de columnas existentes en la base SQL Server.
     private static final String EJERCICIOS_BY_DDAA_SQL = """
-            SELECT e.ID_Ejercicio AS id,
-                   e.FK_ID_DDAA AS ddaaId,
-                   e.EjercicioDerecho AS ejercicioDerecho,
-                   e.ContinuidadDerecho AS continuidadDerecho
-            FROM DDAA_EJERCICIO e
-            WHERE e.FK_ID_DDAA = ?
-            ORDER BY e.ID_Ejercicio
-            """;
+        SELECT e.ID_Ejercicio AS id,
+               e.FK_ID_DDAA AS ddaaId,
+               e.ejercicio_derecho AS ejercicioDerecho,
+               e.continuidad_derecho AS continuidadDerecho
+        FROM DDAA_EJERCICIO e
+        WHERE e.FK_ID_DDAA = ?
+        ORDER BY e.ID_Ejercicio
+        """;
 
+    // Consulta los caudales mensuales asociados a un ejercicio.
+// Se usan los nombres reales de columnas existentes en la base SQL Server.
     private static final String CAUDALES_BY_EJERCICIO_SQL = """
-            SELECT c.ID_Caudal AS id,
-                   c.FK_ID_EJERCICIO AS ejercicioId,
-                   c.Mes AS mes,
-                   c.CaudalMensual AS caudalMensual
-            FROM DDAA_CAUDAL c
-            WHERE c.FK_ID_EJERCICIO = ?
-            ORDER BY c.Mes
-            """;
+        SELECT c.ID_Caudal AS id,
+               c.FK_ID_EJERCICIO AS ejercicioId,
+               c.Mes AS mes,
+               c.caudal_mensual AS caudalMensual
+        FROM DDAA_CAUDAL c
+        WHERE c.FK_ID_EJERCICIO = ?
+        ORDER BY c.Mes
+        """;
 
     private static final String CAUDALES_ECOLOGICOS_BY_EJERCICIO_SQL = """
             SELECT c.id_caudal_ecologico AS id,
                    c.FK_ID_EJERCICIO AS ejercicioId,
                    c.mes AS mes,
-                   c.caudalEcologico AS caudalEcologico
+                   c.caudal_ecologico AS caudalEcologico
             FROM DDAA_CAUDAL_ECOLOGICO c
             WHERE c.FK_ID_EJERCICIO = ?
             ORDER BY c.mes
             """;
 
+    // Consulta las obras asociadas a un ejercicio del derecho de agua.
+// Los nombres de columnas están ajustados al esquema real de SQL Server.
+// Los alias se mantienen en camelCase porque así los espera el DTO del backend.
     private static final String OBRAS_BY_EJERCICIO_SQL = """
-            SELECT o.id AS id,
-                   o.FK_ID_RUT_PROVEEDOR AS rutProveedor,
-                   o.TipoObra AS tipoObra,
-                   o.EstadoObra AS estadoObra,
-                   o.Fecha_Sol_Obra AS fechaSolicitudObra,
-                   o.Carpeta_Solicitud AS carpetaSolicitud,
-                   o.CoordenadaObra AS coordenadaObra,
-                   o.ResolucionObra AS resolucionObra,
-                   o.LinkResolucionObra AS linkResolucionObra,
-                   o.Con_Instrumento AS conInstrumento,
-                   o.CodigoObraDGA AS codigoObraDga,
-                   o.LinkQR AS linkQr,
-                   o.ReportaDGA AS reportaDga,
-                   p.ID_Plazo AS plazoId,
-                   p.Clase AS clase,
-                   p.caudal_ls_min AS caudalLsMin,
-                   p.caudal_ls_max AS caudalLsMax,
-                   p.Resol_Extrac_Efect AS resolucionExtracEfect,
-                   p.Link_Resol_Extrac_efect AS linkResolucionExtracEfect,
-                   p.Fecha_Resol_Extrac_efect AS fechaResolucionExtracEfect,
-                   p.Plazo_Med_Reg AS plazoMedReg,
-                   p.Plazo_Transmision AS plazoTransmision,
-                   p.Fecha_medicion_reg AS fechaMedicionReg,
-                   p.Fecha_transmision AS fechaTransmision
-            FROM DDAA_EJERCICIO_OBRA eo
-            INNER JOIN DDAA_OBRA o ON o.id = eo.FK_ID_OBRA
-            LEFT JOIN DDAA_PLAZO p ON p.ID_Plazo = o.FK_ID_DDAA_PLAZO
-            WHERE eo.FK_ID_EJERCICIO = ?
-            ORDER BY o.id
-            """;
+        SELECT o.id AS id,
+               o.fk_id_rut_proveedor AS rutProveedor,
+               o.tipo_obra AS tipoObra,
+               o.estado_obra AS estadoObra,
+               o.fecha_sol_obra AS fechaSolicitudObra,
+               o.carpeta_solicitud AS carpetaSolicitud,
+               o.coordenada_obra AS coordenadaObra,
+               o.resolucion_obra AS resolucionObra,
+               o.link_resolucion_obra AS linkResolucionObra,
+               o.con_instrumento AS conInstrumento,
+               o.codigo_obradga AS codigoObraDga,
+               o.linkqr AS linkQr,
+               o.reportadga AS reportaDga,
+               p.id_plazo AS plazoId,
+               p.clase AS clase,
+               p.caudal_ls_min AS caudalLsMin,
+               p.caudal_ls_max AS caudalLsMax,
+               p.resol_extrac_efect AS resolucionExtracEfect,
+               p.link_resol_extrac_efect AS linkResolucionExtracEfect,
+               p.fecha_resol_extrac_efect AS fechaResolucionExtracEfect,
+               p.plazo_med_reg AS plazoMedReg,
+               p.plazo_transmision AS plazoTransmision,
+               p.fecha_medicion_reg AS fechaMedicionReg,
+               p.fecha_transmision AS fechaTransmision
+        FROM ddaa_ejercicio_obra eo
+        INNER JOIN ddaa_obra o ON o.id = eo.fk_id_obra
+        LEFT JOIN ddaa_plazo p ON p.id_plazo = o.fk_id_ddaa_plazo
+        WHERE eo.fk_id_ejercicio = ?
+        ORDER BY o.id
+        """;
 
     private static final String CUENCAS_SQL = """
         SELECT id_cuenca AS id, nombre AS nombre

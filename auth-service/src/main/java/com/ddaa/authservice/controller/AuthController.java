@@ -20,15 +20,19 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.ddaa.authservice.service.JwtService;
+
 @RestController
 @RequestMapping("/auth")
 @Tag(name = "Auth", description = "Endpoints REST del servicio de autenticacion. El flujo OAuth completo se inicia fuera de Swagger.")
 public class AuthController {
 
     private final UserService userService;
+    private final JwtService jwtService;
 
-    public AuthController(UserService userService) {
+    public AuthController(UserService userService, JwtService jwtService) {
         this.userService = userService;
+        this.jwtService = jwtService;
     }
 
     @GetMapping("/test")
@@ -90,6 +94,8 @@ public class AuthController {
             response.put("role", user.getRole());
             response.put("active", user.getActive());
             response.put("lastLogin", user.getLastLogin());
+            response.put("accessToken", jwtService.generateToken(user));
+            response.put("tokenType", "Bearer");
         }
 
         return response;
