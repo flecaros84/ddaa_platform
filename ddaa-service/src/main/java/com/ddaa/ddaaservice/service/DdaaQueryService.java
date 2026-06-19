@@ -30,6 +30,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Sort;
 
 import java.util.List;
+import java.util.ArrayList;
+
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 
 @Service
 public class DdaaQueryService {
@@ -64,10 +69,28 @@ public class DdaaQueryService {
         this.caudalEcologicoRepository = caudalEcologicoRepository;
     }
 
+    /**
+     * Lista todos los derechos de aprovechamiento de aguas.
+     *
+     * Esta consulta se cachea porque alimenta el listado principal del frontend
+     * y suele repetirse varias veces sin cambios entre operaciones de escritura.
+     *
+     * La caché se guarda en Redis usando el TTL configurado en application.yml.
+     */
+    @Cacheable(cacheNames = "ddaa-list")
     public List<DdaaSummaryDto> findAllDdaa() {
         return queryRepository.findAllDdaa();
     }
 
+    /**
+     * Obtiene el detalle completo de un derecho de aprovechamiento de aguas.
+     *
+     * Esta consulta se cachea por ID porque reúne varias consultas relacionadas:
+     * datos principales, expedientes, pagos de no uso y ejercicios.
+     *
+     * La clave usa el ID del DDAA para guardar cada detalle por separado.
+     */
+    @Cacheable(cacheNames = "ddaa-detail", key = "#id")
     public DdaaDetailDto findDdaaDetail(long id) {
         DdaaSummaryDto ddaa = queryRepository.findDdaaById(id)
                 .orElseThrow(() -> new IllegalArgumentException("No se encontro el derecho de agua " + id));
@@ -83,37 +106,85 @@ public class DdaaQueryService {
         return queryRepository.findExpedientesByDdaaId(ddaaId);
     }
 
+    /**
+     * Lista cuencas disponibles para formularios y filtros.
+     *
+     * Es un catálogo de baja volatilidad, por lo que se cachea con TTL Redis.
+     */
+    @Cacheable(cacheNames = "ddaa-catalog-cuencas")
     public List<CuencaDto> findCuencas() {
         return queryRepository.findCuencas();
     }
 
+    /**
+     * Lista subcuencas disponibles para formularios y filtros.
+     *
+     * Es un catálogo de baja volatilidad, por lo que se cachea con TTL Redis.
+     */
+    @Cacheable(cacheNames = "ddaa-catalog-subcuencas")
     public List<SubcuencaDto> findSubcuencas() {
         return queryRepository.findSubcuencas();
     }
 
+    /**
+     * Lista fuentes disponibles para formularios y filtros.
+     *
+     * Es un catálogo de baja volatilidad, por lo que se cachea con TTL Redis.
+     */
+    @Cacheable(cacheNames = "ddaa-catalog-fuentes")
     public List<FuenteDto> findFuentes() {
         return queryRepository.findFuentes();
     }
 
+    /**
+     * Lista comunas disponibles para formularios.
+     *
+     * Se retorna como ArrayList concreta para que Redis/Jackson pueda
+     * serializar y deserializar correctamente la lista cacheada.
+     */
+    @Cacheable(cacheNames = "ddaa-catalog-comunas")
     public List<ComunaDto> findComunas() {
-        return comunaRepository.findAll(Sort.by("nombre")).stream()
-                .map(comuna -> new ComunaDto(comuna.getId(), comuna.getNombre()))
-                .toList();
+        return new ArrayList<>(
+                comunaRepository.findAll(Sort.by("nombre")).stream()
+                        .map(comuna -> new ComunaDto(comuna.getId(), comuna.getNombre()))
+                        .toList()
+        );
     }
 
+    /**
+     * Lista titulares/RUT disponibles para formularios.
+     *
+     * Se retorna como ArrayList concreta para evitar problemas de deserialización
+     * al leer la respuesta desde Redis.
+     */
+    @Cacheable(cacheNames = "ddaa-catalog-ruts")
     public List<RutDto> findRuts() {
-        return rutRepository.findAll(Sort.by("nombre")).stream()
-                .map(rut -> new RutDto(rut.getRut(), rut.getNombre()))
-                .toList();
+        return new ArrayList<>(
+                rutRepository.findAll(Sort.by("nombre")).stream()
+                        .map(rut -> new RutDto(rut.getRut(), rut.getNombre()))
+                        .toList()
+        );
     }
 
+    /**
+     * Lista instalaciones disponibles para formularios.
+     *
+     * Se retorna como ArrayList concreta para mantener un formato compatible
+     * con el serializador JSON usado por Redis.
+     */
+    @Cacheable(cacheNames = "ddaa-catalog-instalaciones")
     public List<InstalacionDto> findInstalaciones() {
-        return instalacionRepository.findAll(Sort.by("nombre")).stream()
-                .map(instalacion -> new InstalacionDto(instalacion.getId().longValue(), instalacion.getNombre()))
-                .toList();
+        return new ArrayList<>(
+                instalacionRepository.findAll(Sort.by("nombre")).stream()
+                        .map(instalacion -> new InstalacionDto(instalacion.getId().longValue(), instalacion.getNombre()))
+                        .toList()
+        );
     }
 
     @Transactional
+// Invalida el listado cacheado cuando se crea un nuevo derecho de agua.
+// Así evitamos que el frontend vea una lista antigua después de crear.
+    @CacheEvict(cacheNames = "ddaa-list", allEntries = true)
     public long createDdaa(DdaaCreateDto dto) {
         Ddaa ddaa = new Ddaa();
         applyDdaaFields(ddaa, dto.comunaId(), dto.rutTitular(), dto.instalacionId(), dto.fuenteId(),
@@ -122,6 +193,12 @@ public class DdaaQueryService {
     }
 
     @Transactional
+// Invalida las cachés afectadas cuando se edita un derecho de agua.
+// Se limpia el listado completo y también el detalle específico del DDAA editado.
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "ddaa-list", allEntries = true),
+            @CacheEvict(cacheNames = "ddaa-detail", key = "#id")
+    })
     public int updateDdaa(long id, DdaaUpdateDto dto) {
         return ddaaRepository.findById(toIntegerId(id))
                 .map(ddaa -> {
@@ -134,6 +211,12 @@ public class DdaaQueryService {
     }
 
     @Transactional
+// Invalida las cachés afectadas cuando se elimina un derecho de agua.
+// Se limpia el listado completo y también el detalle específico del DDAA eliminado.
+    @Caching(evict = {
+            @CacheEvict(cacheNames = "ddaa-list", allEntries = true),
+            @CacheEvict(cacheNames = "ddaa-detail", key = "#id")
+    })
     public int deleteDdaa(long id) {
         Integer entityId = toIntegerId(id);
         if (!ddaaRepository.existsById(entityId)) {

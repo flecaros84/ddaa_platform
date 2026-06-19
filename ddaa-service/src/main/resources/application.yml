@@ -9,6 +9,28 @@ spring:
   config:
     import: optional:file:./local.properties
 
+  # Configuración de conexión a Redis para caché local/desarrollo.
+  data:
+    redis:
+      host: ${DDAA_REDIS_HOST:localhost}
+      port: ${DDAA_REDIS_PORT:6379}
+      timeout: ${DDAA_REDIS_TIMEOUT:2s}
+
+  # Configuración global de caché.
+  cache:
+    type: redis
+    redis:
+      # TTL general para las entradas guardadas en caché.
+      # En desarrollo usamos 10 minutos para evitar datos antiguos por mucho tiempo.
+      time-to-live: ${DDAA_CACHE_TTL:10m}
+
+      # Evita guardar respuestas nulas en Redis.
+      cache-null-values: false
+
+      # Agrega un prefijo a las claves para distinguirlas de otros servicios.
+      use-key-prefix: true
+      key-prefix: "ddaa-service::"
+
   datasource:
     url: ${DDAA_DB_URL:jdbc:sqlserver://localhost:1433;databaseName=ddaa;encrypt=true;trustServerCertificate=true}
     username: ${DDAA_DB_USER:ddaa_user}
@@ -28,6 +50,13 @@ spring:
         format_sql: true
 
 eureka:
+  instance:
+    # Fuerza a Eureka a registrar ddaa-service usando IP local en desarrollo.
+    # Esto evita que api-gateway intente resolver hostnames locales como LAPTOP-...mshome.net.
+    prefer-ip-address: true
+    ip-address: ${DDAA_SERVICE_EUREKA_IP:127.0.0.1}
+    hostname: ${DDAA_SERVICE_EUREKA_HOSTNAME:localhost}
+
   client:
     service-url:
       defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
