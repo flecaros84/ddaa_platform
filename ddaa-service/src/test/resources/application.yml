@@ -8,6 +8,7 @@ spring:
   cloud:
     discovery:
       enabled: false
+
   autoconfigure:
     exclude:
       - org.springframework.cloud.netflix.eureka.EurekaClientAutoConfiguration
@@ -28,9 +29,16 @@ spring:
 
   sql:
     init:
-      mode: always
-      data-locations: classpath:data.sql
+      # En tests no se debe ejecutar data.sql porque contiene datos pensados
+      # para la aplicación real y puede chocar con H2.
+      # Cada test debe preparar sus propios datos mínimos.
+      mode: never
 
 app:
   sample-data:
     enabled: false
+
+  security:
+    # Clave dummy usada solo para levantar Spring Security en tests.
+    # No es una credencial real y no debe usarse fuera del entorno de pruebas.
+    jwt-secret: ddaa-test-secret-key-for-integration-tests-only-123456789
