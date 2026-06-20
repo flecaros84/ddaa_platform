@@ -9,6 +9,22 @@ spring:
   config:
     import: optional:file:./local.properties
 
+  rabbitmq:
+    # Host donde corre RabbitMQ.
+    # En local usamos localhost; en deployment se reemplaza por variable de entorno.
+    host: ${DDAA_RABBITMQ_HOST:localhost}
+
+    # Puerto AMQP usado por los microservicios para conectarse al broker.
+    port: ${DDAA_RABBITMQ_PORT:5672}
+
+    # Usuario local de RabbitMQ.
+    # En producción debe venir desde secrets o variables de entorno.
+    username: ${DDAA_RABBITMQ_USERNAME:ddaa}
+
+    # Password local de RabbitMQ.
+    # En producción debe venir desde secrets o variables de entorno.
+    password: ${DDAA_RABBITMQ_PASSWORD:ddaa}
+
   # Configuración de conexión a Redis para caché local/desarrollo.
   data:
     redis:

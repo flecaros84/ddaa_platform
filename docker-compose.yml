@@ -1,0 +1,25 @@
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    container_name: ddaa-rabbitmq
+    restart: unless-stopped
+
+    # Credenciales locales leídas desde local.properties.
+    # En deployment estas variables deberían venir desde secrets o variables de entorno.
+    environment:
+      RABBITMQ_DEFAULT_USER: ${DDAA_RABBITMQ_USERNAME:-ddaa}
+      RABBITMQ_DEFAULT_PASS: ${DDAA_RABBITMQ_PASSWORD:-ddaa}
+
+    ports:
+      # Puerto AMQP usado por los microservicios Spring Boot.
+      - "${DDAA_RABBITMQ_PORT:-5672}:5672"
+
+      # Consola web de administración de RabbitMQ.
+      - "15672:15672"
+
+    volumes:
+      # Persistencia local de RabbitMQ.
+      - rabbitmq_data:/var/lib/rabbitmq
+
+volumes:
+  rabbitmq_data:

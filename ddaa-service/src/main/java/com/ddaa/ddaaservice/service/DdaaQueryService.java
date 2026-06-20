@@ -36,6 +36,10 @@ import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Caching;
 
+import com.ddaa.ddaaservice.event.DdaaEvent;
+import com.ddaa.ddaaservice.event.DdaaEventPublisher;
+import com.ddaa.ddaaservice.event.DdaaEventType;
+
 @Service
 public class DdaaQueryService {
 
@@ -49,6 +53,7 @@ public class DdaaQueryService {
     private final DdaaEjercicioRepository ejercicioRepository;
     private final DdaaCaudalRepository caudalRepository;
     private final DdaaCaudalEcologicoRepository caudalEcologicoRepository;
+    private final DdaaEventPublisher ddaaEventPublisher;
 
     public DdaaQueryService(DdaaQueryRepository queryRepository, DdaaRepository ddaaRepository,
                             ComunaRepository comunaRepository, RutRepository rutRepository,
@@ -56,7 +61,8 @@ public class DdaaQueryService {
                             DdaaPagoNoUsoRepository pagoNoUsoRepository,
                             DdaaEjercicioRepository ejercicioRepository,
                             DdaaCaudalRepository caudalRepository,
-                            DdaaCaudalEcologicoRepository caudalEcologicoRepository) {
+                            DdaaCaudalEcologicoRepository caudalEcologicoRepository,
+                            DdaaEventPublisher ddaaEventPublisher) {
         this.queryRepository = queryRepository;
         this.ddaaRepository = ddaaRepository;
         this.comunaRepository = comunaRepository;
@@ -67,6 +73,7 @@ public class DdaaQueryService {
         this.ejercicioRepository = ejercicioRepository;
         this.caudalRepository = caudalRepository;
         this.caudalEcologicoRepository = caudalEcologicoRepository;
+        this.ddaaEventPublisher = ddaaEventPublisher;
     }
 
     /**
@@ -187,9 +194,33 @@ public class DdaaQueryService {
     @CacheEvict(cacheNames = "ddaa-list", allEntries = true)
     public long createDdaa(DdaaCreateDto dto) {
         Ddaa ddaa = new Ddaa();
+
+        // Aplicamos los datos recibidos desde el formulario antes de guardar.
         applyDdaaFields(ddaa, dto.comunaId(), dto.rutTitular(), dto.instalacionId(), dto.fuenteId(),
                 dto.nombreFuenteDerecho(), dto.naturalezaDerecho(), dto.tipoDerecho(), dto.estadoDerecho());
-        return ddaaRepository.save(ddaa).getId();
+
+        // Guardamos primero para obtener el ID real generado por la base de datos.
+        Ddaa savedDdaa = ddaaRepository.save(ddaa);
+        long ddaaId = savedDdaa.getId();
+
+        // Construimos el evento de creación con datos suficientes para una futura notificación por email.
+        DdaaEvent event = DdaaEvent.of(
+                DdaaEventType.CREATED,
+                ddaaId,
+                dto.comunaId(),
+                dto.rutTitular(),
+                dto.instalacionId(),
+                dto.fuenteId(),
+                dto.nombreFuenteDerecho(),
+                dto.naturalezaDerecho(),
+                dto.tipoDerecho(),
+                dto.estadoDerecho()
+        );
+
+        // Publicamos el evento solo después de confirmar correctamente la transacción.
+        ddaaEventPublisher.publishAfterCommit(event);
+
+        return ddaaId;
     }
 
     @Transactional
@@ -202,9 +233,30 @@ public class DdaaQueryService {
     public int updateDdaa(long id, DdaaUpdateDto dto) {
         return ddaaRepository.findById(toIntegerId(id))
                 .map(ddaa -> {
+                    // Aplicamos los nuevos datos recibidos desde el formulario.
                     applyDdaaFields(ddaa, dto.comunaId(), dto.rutTitular(), dto.instalacionId(), dto.fuenteId(),
                             dto.nombreFuenteDerecho(), dto.naturalezaDerecho(), dto.tipoDerecho(), dto.estadoDerecho());
+
+                    // Guardamos la entidad actualizada antes de publicar el evento.
                     ddaaRepository.save(ddaa);
+
+                    // Construimos el evento de actualización con los datos finales del DDAA.
+                    DdaaEvent event = DdaaEvent.of(
+                            DdaaEventType.UPDATED,
+                            id,
+                            dto.comunaId(),
+                            dto.rutTitular(),
+                            dto.instalacionId(),
+                            dto.fuenteId(),
+                            dto.nombreFuenteDerecho(),
+                            dto.naturalezaDerecho(),
+                            dto.tipoDerecho(),
+                            dto.estadoDerecho()
+                    );
+
+                    // Publicamos el evento solo después de confirmar correctamente la transacción.
+                    ddaaEventPublisher.publishAfterCommit(event);
+
                     return 1;
                 })
                 .orElse(0);
@@ -219,21 +271,47 @@ public class DdaaQueryService {
     })
     public int deleteDdaa(long id) {
         Integer entityId = toIntegerId(id);
-        if (!ddaaRepository.existsById(entityId)) {
-            return 0;
-        }
-        Ddaa ddaa = ddaaRepository.getReferenceById(entityId);
-        ddaa.getExpedientes().clear();
-        ddaaRepository.save(ddaa);
 
-        pagoNoUsoRepository.deleteByDdaa_Id(entityId);
-        for (DdaaEjercicio ejercicio : ejercicioRepository.findByDdaa_Id(entityId)) {
-            caudalRepository.deleteByEjercicio_Id(ejercicio.getId());
-            caudalEcologicoRepository.deleteByEjercicio_Id(ejercicio.getId());
-        }
-        ejercicioRepository.deleteByDdaa_Id(entityId);
-        ddaaRepository.delete(ddaa);
-        return 1;
+        return ddaaRepository.findById(entityId)
+                .map(ddaa -> {
+                    // Construimos el evento antes de eliminar el DDAA.
+                    // Así conservamos los datos necesarios para notificar por RabbitMQ.
+                    DdaaEvent event = DdaaEvent.of(
+                            DdaaEventType.DELETED,
+                            id,
+                            ddaa.getComuna().getId(),
+                            ddaa.getTitular().getRut(),
+                            ddaa.getInstalacion() != null ? ddaa.getInstalacion().getId().longValue() : null,
+                            ddaa.getFuente().getId().longValue(),
+                            ddaa.getNombreFuenteDerecho(),
+                            ddaa.getNaturalezaDerecho(),
+                            ddaa.getTipoDerecho(),
+                            ddaa.getEstadoDerecho()
+                    );
+
+                    // Primero limpiamos la relación many-to-many con expedientes.
+                    ddaa.getExpedientes().clear();
+                    ddaaRepository.save(ddaa);
+
+                    // Luego eliminamos registros dependientes asociados al DDAA.
+                    pagoNoUsoRepository.deleteByDdaa_Id(entityId);
+
+                    for (DdaaEjercicio ejercicio : ejercicioRepository.findByDdaa_Id(entityId)) {
+                        caudalRepository.deleteByEjercicio_Id(ejercicio.getId());
+                        caudalEcologicoRepository.deleteByEjercicio_Id(ejercicio.getId());
+                    }
+
+                    ejercicioRepository.deleteByDdaa_Id(entityId);
+
+                    // Finalmente eliminamos el DDAA.
+                    ddaaRepository.delete(ddaa);
+
+                    // Publicamos el evento solo después de confirmar correctamente la transacción.
+                    ddaaEventPublisher.publishAfterCommit(event);
+
+                    return 1;
+                })
+                .orElse(0);
     }
 
     private void applyDdaaFields(Ddaa ddaa, String comunaId, Long rutTitular, Long instalacionId, Long fuenteId,
