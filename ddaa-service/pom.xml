@@ -117,6 +117,40 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
+
+            <!--
+    Plugin de cobertura para pruebas automatizadas.
+    JaCoCo instrumenta los tests y genera un reporte HTML en target/site/jacoco/index.html.
+    Se configura sin umbral mínimo por ahora para no bloquear la rama mientras se agregan más tests.
+-->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.15</version>
+                <executions>
+                    <!--
+                        Prepara el agente de JaCoCo antes de ejecutar los tests.
+                        Esto permite medir qué líneas, ramas y métodos son cubiertos por JUnit.
+                    -->
+                    <execution>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+
+                    <!--
+                        Genera el reporte de cobertura durante la fase test.
+                        El reporte HTML queda disponible para evidencia de entrega.
+                    -->
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 
