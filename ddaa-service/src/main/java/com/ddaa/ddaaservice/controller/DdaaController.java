@@ -17,7 +17,6 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -31,7 +30,6 @@ import java.util.List;
 @RestController
 @RequestMapping("/api")
 @Tag(name = "DDAA", description = "Operaciones de consulta y administracion de derechos de aprovechamiento de aguas.")
-@SecurityRequirement(name = "sessionCookie")
 public class DdaaController {
 
     private final DdaaQueryService queryService;
@@ -42,7 +40,14 @@ public class DdaaController {
 
     @GetMapping("/ddaa")
     @Operation(summary = "Listar derechos DDAA", description = "Entrega un resumen de todos los derechos registrados.")
-    @ApiResponse(responseCode = "200", description = "Listado de derechos DDAA")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Listado de derechos DDAA"),
+            @ApiResponse(
+                    responseCode = "401",
+                    description = "No autenticado. Se requiere token JWT Bearer válido.",
+                    content = @Content
+            )
+    })
     public List<DdaaSummaryDto> listDdaa() {
         return queryService.findAllDdaa();
     }
