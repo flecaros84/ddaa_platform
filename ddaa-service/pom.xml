@@ -127,6 +127,26 @@
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.15</version>
+                <configuration>
+                    <!--
+                        Se excluyen clases estructurales o de infraestructura:
+                        - DTOs: records sin lógica de negocio.
+                        - Modelos JPA: entidades con getters/setters.
+                        - Repositories: interfaces o consultas de persistencia.
+                        - Config: configuración Spring/Rabbit/OpenAPI/Redis.
+                        - Clase main: bootstrap de Spring Boot.
+
+                        La cobertura queda enfocada en lógica testeable:
+                        service, controller, event y exception.
+                    -->
+                    <excludes>
+                        <exclude>com/ddaa/ddaaservice/dto/*</exclude>
+                        <exclude>com/ddaa/ddaaservice/model/*</exclude>
+                        <exclude>com/ddaa/ddaaservice/repository/*</exclude>
+                        <exclude>com/ddaa/ddaaservice/config/*</exclude>
+                        <exclude>com/ddaa/ddaaservice/DdaaServiceApplication*</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <!--
                         Prepara el agente de JaCoCo antes de ejecutar los tests.

@@ -1,0 +1,65 @@
+# Configuración común para pruebas automatizadas de auth-service.
+# Evita depender de SQL Server, Eureka o credenciales reales de Google.
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+spring:
+  cloud:
+    discovery:
+      enabled: false
+
+  autoconfigure:
+    exclude:
+      - org.springframework.cloud.netflix.eureka.EurekaClientAutoConfiguration
+      - org.springframework.cloud.netflix.eureka.EurekaDiscoveryClientConfiguration
+      - org.springframework.cloud.netflix.eureka.serviceregistry.EurekaAutoServiceRegistrationAutoConfiguration
+
+  datasource:
+    # H2 en memoria para tests. No toca SQL Server ni requiere infraestructura externa.
+    url: jdbc:h2:mem:ddaa_auth;MODE=MSSQLServer;DATABASE_TO_UPPER=false;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    hibernate:
+      # Crea y destruye tablas solo durante los tests.
+      ddl-auto: create-drop
+    show-sql: false
+
+  sql:
+    init:
+      # No se ejecutan scripts SQL externos durante tests.
+      # Los tests unitarios usan mocks y el contextLoads solo valida arranque.
+      mode: never
+
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            # Valores dummy solo para permitir que Spring Security construya el cliente OAuth.
+            client-id: test-google-client-id
+            client-secret: test-google-client-secret
+            scope:
+              - openid
+              - profile
+              - email
+
+app:
+  frontend:
+    # URL dummy para levantar SecurityConfig sin depender del frontend real.
+    success-url: http://localhost:5173/
+
+  security:
+    # Dominio dummy usado por servicios OAuth en contexto de pruebas.
+    allowed-google-domain: camanchaca.cl
+
+    # Clave dummy suficientemente larga para firmar JWT en tests.
+    # No corresponde a una credencial real.
+    jwt-secret: ddaa-auth-test-secret-key-for-jwt-generation-only-1234567890
+    jwt-expiration-minutes: 60
