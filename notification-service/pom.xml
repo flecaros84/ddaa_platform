@@ -87,6 +87,47 @@
 
 	<build>
 		<plugins>
+
+			<!--
+    JaCoCo genera reportes de cobertura para notification-service.
+    La medición se enfoca en lógica útil: listener de eventos y servicio de email.
+-->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.15</version>
+
+				<configuration>
+					<!--
+                        Se excluyen clases de infraestructura o sin lógica relevante:
+                        - config: constantes/configuración RabbitMQ.
+                        - main: bootstrap Spring Boot.
+                        - enum: contrato de tipos de evento.
+                    -->
+					<excludes>
+						<exclude>com/ddaa/notificationservice/config/*</exclude>
+						<exclude>com/ddaa/notificationservice/NotificationServiceApplication*</exclude>
+						<exclude>com/ddaa/notificationservice/event/DdaaEventType*</exclude>
+					</excludes>
+				</configuration>
+
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>

@@ -49,6 +49,13 @@
 			<artifactId>spring-boot-starter-actuator-test</artifactId>
 			<scope>test</scope>
 		</dependency>
+
+		<!-- Dependencia estándar para pruebas unitarias con JUnit, Mockito, AssertJ y Spring Test. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 	<dependencyManagement>
 		<dependencies>
@@ -64,6 +71,44 @@
 
 	<build>
 		<plugins>
+
+			<!--
+    JaCoCo genera reportes de cobertura para api-gateway.
+    La medición se enfoca en lógica útil: BFF y filtro de autenticación.
+-->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.15</version>
+
+				<configuration>
+					<!--
+                        Se excluyen clases de infraestructura:
+                        - config: beans de WebClient.
+                        - main: bootstrap de Spring Boot.
+                    -->
+					<excludes>
+						<exclude>com/ddaa/apigateway/config/*</exclude>
+						<exclude>com/ddaa/apigateway/ApiGatewayApplication*</exclude>
+					</excludes>
+				</configuration>
+
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>

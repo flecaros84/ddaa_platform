@@ -112,10 +112,62 @@
 			<version>0.12.6</version>
 			<scope>runtime</scope>
 		</dependency>
+
+		<!-- Base H2 solo para pruebas automatizadas de auth-service.
+     Permite levantar Spring/JPA sin depender de SQL Server local. -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<scope>test</scope>
+		</dependency>
 	</dependencies>
 
 	<build>
 		<plugins>
+
+			<!--
+    JaCoCo genera reportes de cobertura para auth-service.
+    La cobertura se enfoca en lógica testeable: controller, service y exception.
+-->
+			<plugin>
+				<groupId>org.jacoco</groupId>
+				<artifactId>jacoco-maven-plugin</artifactId>
+				<version>0.8.15</version>
+
+				<configuration>
+					<!--
+                        Se excluyen clases estructurales o de integración externa:
+                        - dto/model/repository: contratos, entidades e interfaces sin lógica compleja.
+                        - config/main: configuración y bootstrap de Spring.
+                        - Custom OAuth/OIDC services: adaptadores a Google OAuth, más propios de prueba integrada/manual.
+                    -->
+					<excludes>
+						<exclude>com/ddaa/authservice/dto/*</exclude>
+						<exclude>com/ddaa/authservice/model/*</exclude>
+						<exclude>com/ddaa/authservice/repository/*</exclude>
+						<exclude>com/ddaa/authservice/config/*</exclude>
+						<exclude>com/ddaa/authservice/AuthServiceApplication*</exclude>
+						<exclude>com/ddaa/authservice/service/CustomOAuth2UserService*</exclude>
+						<exclude>com/ddaa/authservice/service/CustomOidcUserService*</exclude>
+					</excludes>
+				</configuration>
+
+				<executions>
+					<execution>
+						<goals>
+							<goal>prepare-agent</goal>
+						</goals>
+					</execution>
+
+					<execution>
+						<id>report</id>
+						<phase>test</phase>
+						<goals>
+							<goal>report</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
