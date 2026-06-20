@@ -1,0 +1,63 @@
+server:
+  # Puerto local de notification-service.
+  # Usamos 8083 para no chocar con gateway, auth-service ni ddaa-service.
+  port: 8083
+
+spring:
+  application:
+    # Nombre con el que aparecerá en Eureka.
+    name: notification-service
+
+  config:
+    import:
+      # Permite leer local.properties si ejecutas desde la raíz del repo.
+      - optional:file:./local.properties
+
+      # Permite leer local.properties si ejecutas desde la carpeta notification-service.
+      - optional:file:../local.properties
+
+  rabbitmq:
+    # Conexión local a RabbitMQ.
+    host: ${DDAA_RABBITMQ_HOST:localhost}
+    port: ${DDAA_RABBITMQ_PORT:5672}
+    username: ${DDAA_RABBITMQ_USERNAME:ddaa}
+    password: ${DDAA_RABBITMQ_PASSWORD:ddaa}
+
+  mail:
+    # Configuración SMTP de Gmail dedicado.
+    host: ${DDAA_MAIL_HOST:smtp.gmail.com}
+    port: ${DDAA_MAIL_PORT:587}
+    username: ${DDAA_MAIL_USERNAME:}
+    password: ${DDAA_MAIL_PASSWORD:}
+
+    properties:
+      mail:
+        smtp:
+          # Gmail requiere autenticación SMTP.
+          auth: true
+
+          starttls:
+            # Usamos STARTTLS en puerto 587.
+            enable: true
+            required: true
+
+app:
+  mail:
+    # Correo remitente usado por notification-service.
+    from: ${DDAA_MAIL_FROM:}
+
+    # Correo destinatario inicial para pruebas.
+    to: ${DDAA_MAIL_TO:}
+
+eureka:
+  client:
+    service-url:
+      # URL local de Eureka.
+      defaultZone: ${EUREKA_DEFAULT_ZONE:http://localhost:8761/eureka/}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # Endpoints básicos para validar que el servicio está vivo.
+        include: health,info
